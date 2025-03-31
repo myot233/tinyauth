@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "me.nzqu.tinyauth.mixin",
+  "compatibilityLevel": "JAVA_8",
+  "refmap": "tinyauth.refmap.json",
+  "mixins": [
+  ],
+  "client": [
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

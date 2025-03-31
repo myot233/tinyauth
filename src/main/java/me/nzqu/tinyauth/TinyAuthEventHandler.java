@@ -1,0 +1,142 @@
+package me.nzqu.tinyauth;
+
+import me.nzqu.tinyauth.capabilities.AuthCapability;
+import me.nzqu.tinyauth.utils.AuthUtils;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.TextComponent;
+import net.minecraft.server.level.ChunkHolder;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.GameType;
+import net.minecraftforge.common.world.ForgeChunkManager;
+import net.minecraftforge.event.CommandEvent;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.living.LivingEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.event.entity.player.PlayerInteractEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+
+import static me.nzqu.tinyauth.utils.AuthUtils.getPlayerIP;
+
+@Mod.EventBusSubscriber
+public class TinyAuthEventHandler {
+    @SubscribeEvent
+    public static void onChunkTick(TickEvent.WorldTickEvent event) {
+        event.world.getChunkSource().getLoadedChunksCount();
+
+    }
+
+
+    @SubscribeEvent
+    public static void onPlayerJoin(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) {
+        TinyAuth.LOGGER.info("Player {} joined the game", event.getPlayer().getName().getString());
+        if(event.getPlayer() instanceof ServerPlayer player){
+            var auth = AuthUtils.getAuthCapability(player);
+            if(auth.PlayerState == AuthCapability.AccountState.LOGIN)
+                auth.setPlayerState(AuthCapability.AccountState.REGISTERED);
+            auth.setPlayerX(player.getX());
+            auth.setPlayerY(player.getY());
+            auth.setPlayerZ(player.getZ());
+            auth.PlayerGameMode = player.gameMode.getGameModeForPlayer() == GameType.SPECTATOR
+                    ? auth.PlayerGameMode
+                    : player.gameMode.getGameModeForPlayer();
+            player.setGameMode(GameType.SPECTATOR);
+            String ip = getPlayerIP(player);
+            auth.addLoginRecord(ip);
+            if (!AuthUtils.isRegistered(player)) {
+                AuthUtils.sendAuthMessage("§y你还没有注册,请输入/register <设置密码> <重复密码>", player);
+            } else {
+                AuthUtils.sendAuthMessage("§b请登录,请输入/login <密码>", player);
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public static void clonePlayer(PlayerEvent.Clone event) {
+        event.getOriginal().revive();
+        AuthCapability original = event.getOriginal().getCapability(AuthCapability.AUTH_CAPABILITY, null).orElse(new AuthCapability());
+        AuthCapability clone = event.getEntity().getCapability(AuthCapability.AUTH_CAPABILITY, null).orElse(new AuthCapability());
+        clone.PlayerState = original.PlayerState;
+        clone.PlayerPassword = original.PlayerPassword;
+        clone.PlayerX = original.PlayerX;
+        clone.PlayerY = original.PlayerY;
+        clone.PlayerZ = original.PlayerZ;
+    }
+
+
+    @SubscribeEvent
+    public static void onPlayerMove(LivingEvent.LivingUpdateEvent event) {
+        if(event.getEntity() instanceof ServerPlayer player){
+            AuthCapability authCapability =  AuthUtils.getAuthCapability(player);
+            if(authCapability == null) return;
+            if(authCapability.getPlayerState() != AuthCapability.AccountState.LOGIN){
+                player.moveTo(authCapability.getPlayerX(),authCapability.getPlayerY(),authCapability.getPlayerZ());
+
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        AuthCapability original = event.getPlayer().getCapability(AuthCapability.AUTH_CAPABILITY, null).orElse(new AuthCapability());
+        original.PlayerX = event.getPlayer().getX();
+        original.PlayerY = event.getPlayer().getY();
+        original.PlayerZ = event.getPlayer().getZ();
+    }
+
+    @SubscribeEvent
+    public static void onPlayerTickEvent(TickEvent.PlayerTickEvent event) {
+        if(event.player instanceof ServerPlayer player){
+            AuthCapability authCapability =  AuthUtils.getAuthCapability(player);
+            if(authCapability == null) return;
+            if(authCapability.getPlayerState() != AuthCapability.AccountState.LOGIN){
+                authCapability.msgTick++;
+                authCapability.timeOutTick++;
+                if(authCapability.msgTick % TinyAuthConfigHandler.TickPerMsg.get() == 0){
+                    if(AuthUtils.isRegistered(player)){
+                        AuthUtils.sendAuthMessage("§b请登录,请输入/login <密码>", player);
+                    }else{
+                        AuthUtils.sendAuthMessage("§y你还没有注册,请输入/register <设置密码> <重复密码>", player);
+                    }
+                }
+                if(authCapability.timeOutTick > TinyAuthConfigHandler.TimeOutTick.get()){
+                    player.connection.disconnect(new TextComponent(TinyAuthConfigHandler.TimeoutKickMessage.get()));
+                }
+            }
+        }
+
+    }
+
+
+
+
+    @SubscribeEvent
+    public static void onPlayerInteract(PlayerInteractEvent event) {
+        if(event.getPlayer() instanceof ServerPlayer player){
+            AuthCapability authCapability =  AuthUtils.getAuthCapability(player);
+            if(authCapability == null) return;
+            if(authCapability.getPlayerState() != AuthCapability.AccountState.LOGIN){
+                event.setCanceled(true);
+            }
+        }
+    }
+
+
+    @SubscribeEvent
+    public static void onPlayerCommand(CommandEvent event) {
+        if(event.getParseResults().getContext().getSource().getEntity() instanceof ServerPlayer player){
+            AuthCapability authCapability =  AuthUtils.getAuthCapability(player);
+            if(authCapability == null) return;
+            if(
+                    AuthUtils.checkCommand(event.getParseResults().getContext().getNodes(),"login")||
+                    AuthUtils.checkCommand(event.getParseResults().getContext().getNodes(),"register")
+            ) return;
+            if(authCapability.getPlayerState() != AuthCapability.AccountState.LOGIN){
+                AuthUtils.sendAuthMessage("§b请登录,请输入/login <密码>", player);
+                event.setCanceled(true);
+            }
+        }
+    }
+
+}
