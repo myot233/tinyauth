@@ -54,6 +54,32 @@ public class TinyAuthConfigHandler {
     public static final ForgeConfigSpec.ConfigValue<String> TimeoutKickMessage = BUILDER
             .comment("登录超时踢出消息")
             .define("timeoutKickMessage", "§c登录超时，请重新连接服务器");
+
+    // IP登录限制配置
+    public static final ForgeConfigSpec.ConfigValue<Boolean> EnableIPRestriction = BUILDER
+            .comment("是否启用IP登录限制")
+            .define("enableIPRestriction", false);
+
+    public static final ForgeConfigSpec.ConfigValue<Integer> MaxAllowedIPs = BUILDER
+            .comment("每个账号允许的最大IP数量")
+            .define("maxAllowedIPs", 3);
+
+    public static final ForgeConfigSpec.ConfigValue<String> IPRestrictedMessage = BUILDER
+            .comment("IP受限时的提示消息")
+            .define("ipRestrictedMessage", "§c此账号已达到IP登录限制，请联系管理员");
+
+    // 登录成功后的延迟消息配置
+    public static final ForgeConfigSpec.ConfigValue<Integer> LoginDelayTicks = BUILDER
+            .comment("登录成功后延迟发送消息的时间（游戏刻）")
+            .define("loginDelayTicks", 60);
+
+    public static final ForgeConfigSpec.ConfigValue<String> LoginDelayMessage = BUILDER
+            .comment("登录成功后延迟发送的消息")
+            .define("loginDelayMessage", "§a欢迎回来！祝你游戏愉快！");
+
+    public static final ForgeConfigSpec.ConfigValue<String> LoginDelayCommand = BUILDER
+            .comment("登录成功后延迟执行的命令（不包含/）")
+            .define("loginDelayCommand", "say 欢迎 %player% 回到服务器！");
             
     static {
         BUILDER.push("Auth Settings");

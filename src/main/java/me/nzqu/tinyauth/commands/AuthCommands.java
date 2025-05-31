@@ -61,7 +61,22 @@ public class AuthCommands {
                                                 .executes(AuthCommands::onResetCommand))))
                         .then(Commands.literal("audit")
                                 .then(Commands.argument("player", EntityArgument.player())
-                                        .executes(AuthCommands::onAuditCommand))));
+                                        .executes(AuthCommands::onAuditCommand)))
+                        .then(Commands.literal("ip")
+                                .then(Commands.literal("list")
+                                        .then(Commands.argument("player", EntityArgument.player())
+                                                .executes(AuthCommands::onIPListCommand)))
+                                .then(Commands.literal("add")
+                                        .then(Commands.argument("player", EntityArgument.player())
+                                                .then(Commands.argument("ip", StringArgumentType.word())
+                                                        .executes(AuthCommands::onIPAddCommand))))
+                                .then(Commands.literal("remove")
+                                        .then(Commands.argument("player", EntityArgument.player())
+                                                .then(Commands.argument("ip", StringArgumentType.word())
+                                                        .executes(AuthCommands::onIPRemoveCommand))))
+                                .then(Commands.literal("clear")
+                                        .then(Commands.argument("player", EntityArgument.player())
+                                                .executes(AuthCommands::onIPClearCommand)))));
     }
 
     private static int onChangePasswordCommand(CommandContext<CommandSourceStack> ctx) {
@@ -223,10 +238,13 @@ public class AuthCommands {
                     return 1;
                 }
                 
-                ctx.getSource().sendSuccess(new TextComponent("玩家 " + targetPlayer.getName().getString() + " 的登录历史:"), false);
+                ctx.getSource().sendSuccess(new TextComponent("§6=== 玩家 " + targetPlayer.getName().getString() + " 的登录历史 ==="), false);
                 for (int i = 0; i < loginHistory.size(); i++) {
-                    ctx.getSource().sendSuccess(new TextComponent((i+1) + ". " + loginHistory.get(i)), false);
+                    String record = loginHistory.get(i);
+                    // 改进显示格式，确保IPv6地址完整显示
+                    ctx.getSource().sendSuccess(new TextComponent("§7" + (i+1) + ". §f" + record), false);
                 }
+                ctx.getSource().sendSuccess(new TextComponent("§6=== 共 " + loginHistory.size() + " 条记录 ==="), false);
                 
                 TinyAuth.LOGGER.info("Admin {} audited login history of player {}", 
                     ctx.getSource().getPlayerOrException().getName().getString(), 
@@ -245,5 +263,117 @@ public class AuthCommands {
 
     public static void onLoginCommand(){
         // 空方法，可能是用于未完成的功能
+    }
+    
+    // IP管理命令：查看玩家允许的IP列表
+    private static int onIPListCommand(CommandContext<CommandSourceStack> ctx) {
+        try {
+            ServerPlayer targetPlayer = EntityArgument.getPlayer(ctx, "player");
+            if (AuthUtils.isRegistered(targetPlayer)) {
+                List<String> allowedIPs = AuthUtils.getAllowedIPs(targetPlayer);
+                
+                if (allowedIPs.isEmpty()) {
+                    ctx.getSource().sendSuccess(new TextComponent("玩家 " + targetPlayer.getName().getString() + " 没有设置IP限制"), false);
+                    return 1;
+                }
+                
+                ctx.getSource().sendSuccess(new TextComponent("§6=== 玩家 " + targetPlayer.getName().getString() + " 的允许IP列表 ==="), false);
+                for (int i = 0; i < allowedIPs.size(); i++) {
+                    ctx.getSource().sendSuccess(new TextComponent("§7" + (i+1) + ". §f" + allowedIPs.get(i)), false);
+                }
+                ctx.getSource().sendSuccess(new TextComponent("§6=== 共 " + allowedIPs.size() + " 个IP ==="), false);
+                
+                return 1;
+            } else {
+                ctx.getSource().sendFailure(new TextComponent("该玩家尚未注册"));
+                return 0;
+            }
+        } catch (Exception e) {
+            ctx.getSource().sendFailure(new TextComponent("执行命令时出错"));
+            TinyAuth.LOGGER.error("Error executing IP list command", e);
+            return 0;
+        }
+    }
+    
+    // IP管理命令：添加允许的IP
+    private static int onIPAddCommand(CommandContext<CommandSourceStack> ctx) {
+        try {
+            ServerPlayer targetPlayer = EntityArgument.getPlayer(ctx, "player");
+            String ip = StringArgumentType.getString(ctx, "ip");
+            
+            if (AuthUtils.isRegistered(targetPlayer)) {
+                if (AuthUtils.tryAddAllowedIP(targetPlayer, ip)) {
+                    ctx.getSource().sendSuccess(new TextComponent("已为玩家 " + targetPlayer.getName().getString() + " 添加允许IP: " + ip), true);
+                    AuthUtils.sendAuthMessage("§a管理员已为你添加允许IP: " + ip, targetPlayer);
+                    TinyAuth.LOGGER.info("Admin {} added allowed IP {} for player {}", 
+                        ctx.getSource().getPlayerOrException().getName().getString(), 
+                        ip, targetPlayer.getName().getString());
+                    return 1;
+                } else {
+                    ctx.getSource().sendFailure(new TextComponent("无法添加IP，可能已达到最大限制或IP已存在"));
+                    return 0;
+                }
+            } else {
+                ctx.getSource().sendFailure(new TextComponent("该玩家尚未注册"));
+                return 0;
+            }
+        } catch (Exception e) {
+            ctx.getSource().sendFailure(new TextComponent("执行命令时出错"));
+            TinyAuth.LOGGER.error("Error executing IP add command", e);
+            return 0;
+        }
+    }
+    
+    // IP管理命令：移除允许的IP
+    private static int onIPRemoveCommand(CommandContext<CommandSourceStack> ctx) {
+        try {
+            ServerPlayer targetPlayer = EntityArgument.getPlayer(ctx, "player");
+            String ip = StringArgumentType.getString(ctx, "ip");
+            
+            if (AuthUtils.isRegistered(targetPlayer)) {
+                if (AuthUtils.removeAllowedIP(targetPlayer, ip)) {
+                    ctx.getSource().sendSuccess(new TextComponent("已为玩家 " + targetPlayer.getName().getString() + " 移除允许IP: " + ip), true);
+                    AuthUtils.sendAuthMessage("§e管理员已移除你的允许IP: " + ip, targetPlayer);
+                    TinyAuth.LOGGER.info("Admin {} removed allowed IP {} for player {}", 
+                        ctx.getSource().getPlayerOrException().getName().getString(), 
+                        ip, targetPlayer.getName().getString());
+                    return 1;
+                } else {
+                    ctx.getSource().sendFailure(new TextComponent("IP不存在于允许列表中"));
+                    return 0;
+                }
+            } else {
+                ctx.getSource().sendFailure(new TextComponent("该玩家尚未注册"));
+                return 0;
+            }
+        } catch (Exception e) {
+            ctx.getSource().sendFailure(new TextComponent("执行命令时出错"));
+            TinyAuth.LOGGER.error("Error executing IP remove command", e);
+            return 0;
+        }
+    }
+    
+    // IP管理命令：清空允许的IP列表
+    private static int onIPClearCommand(CommandContext<CommandSourceStack> ctx) {
+        try {
+            ServerPlayer targetPlayer = EntityArgument.getPlayer(ctx, "player");
+            
+            if (AuthUtils.isRegistered(targetPlayer)) {
+                AuthUtils.clearAllowedIPs(targetPlayer);
+                ctx.getSource().sendSuccess(new TextComponent("已清空玩家 " + targetPlayer.getName().getString() + " 的允许IP列表"), true);
+                AuthUtils.sendAuthMessage("§e管理员已清空你的允许IP列表", targetPlayer);
+                TinyAuth.LOGGER.info("Admin {} cleared allowed IPs for player {}", 
+                    ctx.getSource().getPlayerOrException().getName().getString(), 
+                    targetPlayer.getName().getString());
+                return 1;
+            } else {
+                ctx.getSource().sendFailure(new TextComponent("该玩家尚未注册"));
+                return 0;
+            }
+        } catch (Exception e) {
+            ctx.getSource().sendFailure(new TextComponent("执行命令时出错"));
+            TinyAuth.LOGGER.error("Error executing IP clear command", e);
+            return 0;
+        }
     }
 }

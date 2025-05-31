@@ -35,15 +35,23 @@ public class AuthUtils {
     public static void register(ServerPlayer player, String password){
         AuthCapability capability = getAuthCapability(player);
         Objects.requireNonNull(capability);
+        String currentIP = getPlayerIP(player);
+        
         capability.setPlayerPassword(sha256(password));
         capability.setPlayerState(AuthCapability.AccountState.LOGIN);
         player.setGameMode(capability.PlayerGameMode);
         
-        // 记录首次登录IP
-        capability.addLoginRecord(getPlayerIP(player));
+        // 记录首次注册IP并添加到允许列表
+        capability.addLoginRecord(currentIP);
+        if (me.nzqu.tinyauth.TinyAuthConfigHandler.EnableIPRestriction.get()) {
+            capability.addAllowedIP(currentIP);
+        }
+        
+        // 重置延迟计时器，准备发送延迟消息
+        capability.loginDelayTick = 0;
         
         TinyAuth.LOGGER.info("Player {} registered successfully from IP {}", 
-            player.getName().getString(), getPlayerIP(player));
+            player.getName().getString(), currentIP);
     }
 
     public static void changePassword(ServerPlayer player, String password){
@@ -103,13 +111,30 @@ public class AuthUtils {
     }
     
     /**
-     * 获取玩家的IP地址
+     * 获取玩家的IP地址，支持IPv6
      * @param player 目标玩家
-     * @return IP地址字符串
+     * @return IP地址字符串，完整保留IPv6格式
      */
     public static String getPlayerIP(ServerPlayer player) {
         String ip = player.getIpAddress();
-        return ip != null ? ip : "unknown";
+        if (ip != null) {
+            // 移除可能的端口号，但保留IPv6的完整格式
+            if (ip.contains(":") && !ip.startsWith("[")) {
+                // 这可能是IPv4:port格式
+                int lastColon = ip.lastIndexOf(':');
+                if (lastColon > 0 && ip.substring(lastColon + 1).matches("\\d+")) {
+                    return ip.substring(0, lastColon);
+                }
+            } else if (ip.startsWith("[") && ip.contains("]:")) {
+                // 这是IPv6格式 [IPv6]:port
+                int bracketEnd = ip.indexOf("]:");
+                if (bracketEnd > 0) {
+                    return ip.substring(1, bracketEnd); // 移除方括号和端口
+                }
+            }
+            return ip;
+        }
+        return "unknown";
     }
 
     private static String sha256(String password){
@@ -142,14 +167,35 @@ public class AuthUtils {
 
     public static boolean login(ServerPlayer player, String password){
         AuthCapability capability = getAuthCapability(player);
+        String currentIP = getPlayerIP(player);
+        
+        // 检查IP是否被允许
+        if (!isIPAllowed(player, currentIP)) {
+            // 尝试添加新IP（如果还有空间）
+            if (!tryAddAllowedIP(player, currentIP)) {
+                sendAuthMessage(me.nzqu.tinyauth.TinyAuthConfigHandler.IPRestrictedMessage.get(), player);
+                TinyAuth.LOGGER.warn("IP restriction blocked login attempt for player {} from IP {}", 
+                    player.getName().getString(), currentIP);
+                return false;
+            }
+        }
+        
         if(checkPwd(player, password)){
             capability.setPlayerState(AuthCapability.AccountState.LOGIN);
             player.setGameMode(capability.PlayerGameMode);
-
+            
+            // 记录登录IP
+            capability.addLoginRecord(currentIP);
+            
+            // 重置延迟计时器，准备发送延迟消息
+            capability.loginDelayTick = 0;
+            
+            TinyAuth.LOGGER.info("Player {} logged in successfully from IP {}", 
+                player.getName().getString(), currentIP);
             return true;
         }else{
             TinyAuth.LOGGER.info("Failed login attempt for player {} from IP {}", 
-                player.getName().getString(), getPlayerIP(player));
+                player.getName().getString(), currentIP);
             return false;
         }
     }
@@ -171,6 +217,92 @@ public class AuthUtils {
             capability.PlayerGameMode = player.gameMode.getGameModeForPlayer();
             // 设置为观察者模式
             player.setGameMode(GameType.SPECTATOR);
+        }
+    }
+
+    /**
+     * 检查IP是否被允许登录
+     * @param player 目标玩家
+     * @param ip 要检查的IP地址
+     * @return 如果允许登录返回true
+     */
+    public static boolean isIPAllowed(ServerPlayer player, String ip) {
+        if (!me.nzqu.tinyauth.TinyAuthConfigHandler.EnableIPRestriction.get()) {
+            return true; // 如果未启用IP限制，则允许所有IP
+        }
+        
+        AuthCapability capability = getAuthCapability(player);
+        if (capability == null) {
+            return false;
+        }
+        
+        // 如果是第一次登录（没有任何允许的IP），则自动添加当前IP
+        if (capability.getAllowedIPs().isEmpty()) {
+            capability.addAllowedIP(ip);
+            return true;
+        }
+        
+        return capability.isIPAllowed(ip);
+    }
+
+    /**
+     * 尝试添加新的IP到允许列表
+     * @param player 目标玩家
+     * @param ip 要添加的IP地址
+     * @return 如果成功添加返回true
+     */
+    public static boolean tryAddAllowedIP(ServerPlayer player, String ip) {
+        if (!me.nzqu.tinyauth.TinyAuthConfigHandler.EnableIPRestriction.get()) {
+            return true;
+        }
+        
+        AuthCapability capability = getAuthCapability(player);
+        if (capability == null) {
+            return false;
+        }
+        
+        if (capability.canAddNewIP()) {
+            return capability.addAllowedIP(ip);
+        }
+        
+        return false;
+    }
+
+    /**
+     * 获取玩家允许的IP列表
+     * @param player 目标玩家
+     * @return IP列表
+     */
+    public static List<String> getAllowedIPs(ServerPlayer player) {
+        AuthCapability capability = getAuthCapability(player);
+        if (capability != null) {
+            return capability.getAllowedIPs();
+        }
+        return List.of();
+    }
+
+    /**
+     * 移除允许的IP
+     * @param player 目标玩家
+     * @param ip 要移除的IP
+     * @return 如果成功移除返回true
+     */
+    public static boolean removeAllowedIP(ServerPlayer player, String ip) {
+        AuthCapability capability = getAuthCapability(player);
+        if (capability != null) {
+            return capability.removeAllowedIP(ip);
+        }
+        return false;
+    }
+
+    /**
+     * 清空玩家的允许IP列表
+     * @param player 目标玩家
+     */
+    public static void clearAllowedIPs(ServerPlayer player) {
+        AuthCapability capability = getAuthCapability(player);
+        if (capability != null) {
+            capability.clearAllowedIPs();
         }
     }
 }

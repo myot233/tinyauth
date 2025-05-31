@@ -90,6 +90,33 @@ public class TinyAuthEventHandler {
         if(event.player instanceof ServerPlayer player){
             AuthCapability authCapability =  AuthUtils.getAuthCapability(player);
             if(authCapability == null) return;
+            
+            // 处理已登录玩家的延迟消息和命令
+            if(authCapability.getPlayerState() == AuthCapability.AccountState.LOGIN){
+                authCapability.loginDelayTick++;
+                if(authCapability.loginDelayTick == TinyAuthConfigHandler.LoginDelayTicks.get()){
+                    // 发送延迟消息
+                    String delayMessage = TinyAuthConfigHandler.LoginDelayMessage.get();
+                    if(!delayMessage.isEmpty()){
+                        AuthUtils.sendAuthMessage(delayMessage, player);
+                    }
+                    
+                    // 执行延迟命令
+                    String delayCommand = TinyAuthConfigHandler.LoginDelayCommand.get();
+                    if(!delayCommand.isEmpty()){
+                        // 替换占位符
+                        String command = delayCommand.replace("%player%", player.getName().getString());
+                        // 执行命令
+                        player.getServer().getCommands().performCommand(
+                            player.getServer().createCommandSourceStack(), 
+                            command
+                        );
+                    }
+                }
+                return; // 已登录玩家不需要执行下面的逻辑
+            }
+            
+            // 处理未登录玩家
             if(authCapability.getPlayerState() != AuthCapability.AccountState.LOGIN){
                 authCapability.msgTick++;
                 authCapability.timeOutTick++;
@@ -105,7 +132,6 @@ public class TinyAuthEventHandler {
                 }
             }
         }
-
     }
 
 

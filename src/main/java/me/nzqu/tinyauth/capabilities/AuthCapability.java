@@ -113,7 +113,62 @@ public class AuthCapability {
     public int timeOutTick = 0;
     public GameType PlayerGameMode = GameType.SURVIVAL;
     public List<String> loginHistory = new ArrayList<>();
+    public List<String> allowedIPs = new ArrayList<>(); // 允许登录的IP列表
+    public int loginDelayTick = 0; // 登录成功后的延迟计时器
 
+    /**
+     * 检查IP是否被允许登录
+     * @param ip 要检查的IP地址
+     * @return 如果IP被允许则返回true
+     */
+    public boolean isIPAllowed(String ip) {
+        return allowedIPs.contains(ip);
+    }
+
+    /**
+     * 添加允许的IP地址
+     * @param ip 要添加的IP地址
+     * @return 如果成功添加返回true，如果已存在返回false
+     */
+    public boolean addAllowedIP(String ip) {
+        if (!allowedIPs.contains(ip)) {
+            allowedIPs.add(ip);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 移除允许的IP地址
+     * @param ip 要移除的IP地址
+     * @return 如果成功移除返回true
+     */
+    public boolean removeAllowedIP(String ip) {
+        return allowedIPs.remove(ip);
+    }
+
+    /**
+     * 获取允许的IP列表
+     * @return IP列表的副本
+     */
+    public List<String> getAllowedIPs() {
+        return new ArrayList<>(allowedIPs);
+    }
+
+    /**
+     * 清空允许的IP列表
+     */
+    public void clearAllowedIPs() {
+        allowedIPs.clear();
+    }
+
+    /**
+     * 检查是否可以添加新的IP（基于配置的最大IP数量限制）
+     * @return 如果可以添加返回true
+     */
+    public boolean canAddNewIP() {
+        return allowedIPs.size() < me.nzqu.tinyauth.TinyAuthConfigHandler.MaxAllowedIPs.get();
+    }
 
     public Tag writeNBT() {
         CompoundTag tag = new CompoundTag();
@@ -130,6 +185,13 @@ public class AuthCapability {
             historyTag.add(StringTag.valueOf(record));
         }
         tag.put("LoginHistory", historyTag);
+        
+        // 保存允许的IP列表
+        ListTag allowedIPsTag = new ListTag();
+        for (String ip : allowedIPs) {
+            allowedIPsTag.add(StringTag.valueOf(ip));
+        }
+        tag.put("AllowedIPs", allowedIPsTag);
         
         return tag;
     }
@@ -149,6 +211,15 @@ public class AuthCapability {
                 loginHistory.clear();
                 for (int i = 0; i < historyTag.size(); i++) {
                     loginHistory.add(historyTag.getString(i));
+                }
+            }
+            
+            // 读取允许的IP列表
+            if (compoundTag.contains("AllowedIPs")) {
+                ListTag allowedIPsTag = compoundTag.getList("AllowedIPs", 8); // 8 是字符串标签的类型
+                allowedIPs.clear();
+                for (int i = 0; i < allowedIPsTag.size(); i++) {
+                    allowedIPs.add(allowedIPsTag.getString(i));
                 }
             }
         }
