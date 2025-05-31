@@ -68,6 +68,9 @@ public class AuthUtils {
             capability.PlayerGameMode = player.gameMode.getGameModeForPlayer();
             capability.msgTick = 0;
             capability.timeOutTick = 0;
+            capability.setPlayerX(player.getX());
+            capability.setPlayerY(player.getY());
+            capability.setPlayerZ(player.getZ());
             // 切换为观察者模式
             player.setGameMode(GameType.SPECTATOR);
             // 修改状态为已注册但未登录
