@@ -14,6 +14,9 @@ import me.nzqu.tinyauth.TinyAuth;
 import me.nzqu.tinyauth.capabilities.AuthCapability;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.TextComponent;
+import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.GameType;
 
@@ -64,6 +67,11 @@ public class AuthUtils {
     public static void logout(ServerPlayer player){
         AuthCapability capability = getAuthCapability(player);
         if(capability != null && capability.PlayerState == AuthCapability.AccountState.LOGIN) {
+            // 显示大屏幕登出提示
+            String titleText = me.nzqu.tinyauth.TinyAuthConfigHandler.LogoutTitleText.get();
+            String subtitleText = me.nzqu.tinyauth.TinyAuthConfigHandler.LogoutSubtitleText.get();
+            showBigTitle(titleText, subtitleText, player);
+            
             // 保存当前游戏模式
             capability.PlayerGameMode = player.gameMode.getGameModeForPlayer();
             capability.msgTick = 0;
@@ -82,6 +90,11 @@ public class AuthUtils {
     public static void removeAccount(ServerPlayer player){
         AuthCapability capability = getAuthCapability(player);
         if(capability != null) {
+            // 显示大屏幕账号注销提示
+            String titleText = me.nzqu.tinyauth.TinyAuthConfigHandler.RemoveTitleText.get();
+            String subtitleText = me.nzqu.tinyauth.TinyAuthConfigHandler.RemoveSubtitleText.get();
+            showBigTitle(titleText, subtitleText, player);
+            
             // 保存当前游戏模式
             if(isLoggedIn(player)) {
                 capability.PlayerGameMode = player.gameMode.getGameModeForPlayer();
@@ -210,6 +223,30 @@ public class AuthUtils {
     
     public static void sendAuthMessage(String message, ServerPlayer player){
         player.displayClientMessage(new TextComponent("§d[登录系统] " + message), false);
+    }
+
+    /**
+     * 向玩家显示大屏幕标题提示
+     * @param title 主标题
+     * @param subtitle 副标题
+     * @param player 目标玩家
+     */
+    public static void showBigTitle(String title, String subtitle, ServerPlayer player) {
+        // 设置标题动画时间：淡入20刻，停留60刻，淡出20刻
+        ClientboundSetTitlesAnimationPacket animationPacket = new ClientboundSetTitlesAnimationPacket(20, 60, 20);
+        player.connection.send(animationPacket);
+        
+        // 发送主标题
+        if (title != null && !title.isEmpty()) {
+            ClientboundSetTitleTextPacket titlePacket = new ClientboundSetTitleTextPacket(new TextComponent(title));
+            player.connection.send(titlePacket);
+        }
+        
+        // 发送副标题
+        if (subtitle != null && !subtitle.isEmpty()) {
+            ClientboundSetSubtitleTextPacket subtitlePacket = new ClientboundSetSubtitleTextPacket(new TextComponent(subtitle));
+            player.connection.send(subtitlePacket);
+        }
     }
 
     // 为新玩家设置初始状态

@@ -80,6 +80,23 @@ public class TinyAuthConfigHandler {
     public static final ForgeConfigSpec.ConfigValue<String> LoginDelayCommand = BUILDER
             .comment("登录成功后延迟执行的命令（不包含/）")
             .define("loginDelayCommand", "say 欢迎 %player% 回到服务器！");
+
+    // 大屏幕提示配置
+    public static final ForgeConfigSpec.ConfigValue<String> LogoutTitleText = BUILDER
+            .comment("被登出时的大标题文本")
+            .define("logoutTitleText", "§c§l账号已登出");
+
+    public static final ForgeConfigSpec.ConfigValue<String> LogoutSubtitleText = BUILDER
+            .comment("被登出时的副标题文本")
+            .define("logoutSubtitleText", "§e你的账号已被管理员强制登出");
+
+    public static final ForgeConfigSpec.ConfigValue<String> RemoveTitleText = BUILDER
+            .comment("账号被注销时的大标题文本")
+            .define("removeTitleText", "§4§l账号已注销");
+
+    public static final ForgeConfigSpec.ConfigValue<String> RemoveSubtitleText = BUILDER
+            .comment("账号被注销时的副标题文本")
+            .define("removeSubtitleText", "§c你的账号已被管理员注销");
             
     static {
         BUILDER.push("Auth Settings");
