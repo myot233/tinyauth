@@ -1,6 +1,7 @@
 package me.nzqu.tinyauth.commands;
 
 import java.util.List;
+import java.util.ArrayList;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -76,7 +77,10 @@ public class AuthCommands {
                                                         .executes(AuthCommands::onIPRemoveCommand))))
                                 .then(Commands.literal("clear")
                                         .then(Commands.argument("player", EntityArgument.player())
-                                                .executes(AuthCommands::onIPClearCommand)))));
+                                                .executes(AuthCommands::onIPClearCommand)))
+                                .then(Commands.literal("stats")
+                                        .then(Commands.argument("ip", StringArgumentType.word())
+                                                .executes(AuthCommands::onIPStatsCommand)))));
     }
 
     private static int onChangePasswordCommand(CommandContext<CommandSourceStack> ctx) {
@@ -393,6 +397,68 @@ public class AuthCommands {
         } catch (Exception e) {
             ctx.getSource().sendFailure(new TextComponent("执行命令时出错"));
             TinyAuth.LOGGER.error("Error executing IP clear command", e);
+            return 0;
+        }
+    }
+
+    // IP管理命令：查看IP地址的玩家统计信息
+    private static int onIPStatsCommand(CommandContext<CommandSourceStack> ctx) {
+        try {
+            String targetIP = StringArgumentType.getString(ctx, "ip");
+            
+            // 获取当前从该IP登录的玩家列表
+            List<String> loggedInPlayers = new ArrayList<>();
+            List<String> allPlayersFromIP = new ArrayList<>();
+            
+            for (ServerPlayer player : ctx.getSource().getServer().getPlayerList().getPlayers()) {
+                String playerIP = AuthUtils.getPlayerIP(player);
+                if (targetIP.equals(playerIP)) {
+                    allPlayersFromIP.add(player.getName().getString());
+                    if (AuthUtils.isLoggedIn(player)) {
+                        loggedInPlayers.add(player.getName().getString());
+                    }
+                }
+            }
+            
+            // 显示统计信息
+            ctx.getSource().sendSuccess(new TextComponent("§6=== IP地址 " + targetIP + " 的统计信息 ==="), false);
+            ctx.getSource().sendSuccess(new TextComponent("§7当前在线玩家数: §f" + allPlayersFromIP.size()), false);
+            ctx.getSource().sendSuccess(new TextComponent("§7已登录玩家数: §f" + loggedInPlayers.size()), false);
+            
+            // 显示配置限制
+            if (TinyAuthConfigHandler.EnableIPPlayerLimit.get()) {
+                int maxPlayers = TinyAuthConfigHandler.MaxPlayersPerIP.get();
+                ctx.getSource().sendSuccess(new TextComponent("§7最大允许玩家数: §f" + maxPlayers), false);
+                
+                if (loggedInPlayers.size() >= maxPlayers) {
+                    ctx.getSource().sendSuccess(new TextComponent("§c状态: 已达到限制"), false);
+                } else {
+                    ctx.getSource().sendSuccess(new TextComponent("§a状态: 正常"), false);
+                }
+            } else {
+                ctx.getSource().sendSuccess(new TextComponent("§7IP玩家数限制: §e未启用"), false);
+            }
+            
+            // 显示在线玩家列表
+            if (!allPlayersFromIP.isEmpty()) {
+                ctx.getSource().sendSuccess(new TextComponent("§7在线玩家列表:"), false);
+                for (String playerName : allPlayersFromIP) {
+                    boolean isLoggedIn = loggedInPlayers.contains(playerName);
+                    String status = isLoggedIn ? "§a已登录" : "§c未登录";
+                    ctx.getSource().sendSuccess(new TextComponent("  §f" + playerName + " " + status), false);
+                }
+            } else {
+                ctx.getSource().sendSuccess(new TextComponent("§7当前没有玩家从此IP在线"), false);
+            }
+            
+            ctx.getSource().sendSuccess(new TextComponent("§6=== 统计完成 ==="), false);
+            
+            TinyAuth.LOGGER.info("Admin {} checked IP stats for {}", 
+                ctx.getSource().getPlayerOrException().getName().getString(), targetIP);
+            return 1;
+        } catch (Exception e) {
+            ctx.getSource().sendFailure(new TextComponent("执行命令时出错"));
+            TinyAuth.LOGGER.error("Error executing IP stats command", e);
             return 0;
         }
     }

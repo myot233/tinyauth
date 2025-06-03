@@ -106,6 +106,19 @@ public class TinyAuthConfigHandler {
             .comment("IP受限时的提示消息")
             .define("ipRestrictedMessage", "§c此账号已达到IP登录限制，请联系管理员");
 
+    // 每个IP最大玩家数限制配置
+    public static final ForgeConfigSpec.ConfigValue<Boolean> EnableIPPlayerLimit = BUILDER
+            .comment("是否启用每个IP最大玩家数限制（防多开）")
+            .define("enableIPPlayerLimit", false);
+
+    public static final ForgeConfigSpec.ConfigValue<Integer> MaxPlayersPerIP = BUILDER
+            .comment("每个IP地址允许的最大玩家数量")
+            .define("maxPlayersPerIP", 1);
+
+    public static final ForgeConfigSpec.ConfigValue<String> IPPlayerLimitMessage = BUILDER
+            .comment("IP玩家数量超限时的提示消息")
+            .define("ipPlayerLimitMessage", "§c此IP地址已达到最大玩家数量限制");
+
     // 登录成功后的延迟消息配置
     public static final ForgeConfigSpec.ConfigValue<Integer> LoginDelayTicks = BUILDER
             .comment("登录成功后延迟发送消息的时间（游戏刻）")

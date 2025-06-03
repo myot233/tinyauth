@@ -40,6 +40,14 @@ public class AuthUtils {
         Objects.requireNonNull(capability);
         String currentIP = getPlayerIP(player);
         
+        // 检查每个IP最大玩家数限制（防多开）
+        if (!checkIPPlayerLimit(player, currentIP)) {
+            sendAuthMessage(me.nzqu.tinyauth.TinyAuthConfigHandler.IPPlayerLimitMessage.get(), player);
+            TinyAuth.LOGGER.warn("IP player limit blocked registration for player {} from IP {} (too many players from this IP)", 
+                player.getName().getString(), currentIP);
+            return;
+        }
+        
         capability.setPlayerPassword(sha256(password));
         capability.setPlayerState(AuthCapability.AccountState.LOGIN);
         player.setGameMode(capability.PlayerGameMode);
@@ -191,6 +199,14 @@ public class AuthUtils {
     public static boolean login(ServerPlayer player, String password){
         AuthCapability capability = getAuthCapability(player);
         String currentIP = getPlayerIP(player);
+        
+        // 检查每个IP最大玩家数限制（防多开）
+        if (!checkIPPlayerLimit(player, currentIP)) {
+            sendAuthMessage(me.nzqu.tinyauth.TinyAuthConfigHandler.IPPlayerLimitMessage.get(), player);
+            TinyAuth.LOGGER.warn("IP player limit blocked login attempt for player {} from IP {} (too many players from this IP)", 
+                player.getName().getString(), currentIP);
+            return false;
+        }
         
         // 检查IP是否被允许
         if (!isIPAllowed(player, currentIP)) {
@@ -351,5 +367,52 @@ public class AuthUtils {
         if (capability != null) {
             capability.clearAllowedIPs();
         }
+    }
+
+    /**
+     * 检查IP地址的玩家数量限制（防多开）
+     * @param currentPlayer 当前尝试登录的玩家
+     * @param ip 要检查的IP地址
+     * @return 如果允许登录返回true
+     */
+    public static boolean checkIPPlayerLimit(ServerPlayer currentPlayer, String ip) {
+        if (!me.nzqu.tinyauth.TinyAuthConfigHandler.EnableIPPlayerLimit.get()) {
+            return true; // 如果未启用IP玩家数限制，则允许
+        }
+        
+        int maxPlayersPerIP = me.nzqu.tinyauth.TinyAuthConfigHandler.MaxPlayersPerIP.get();
+        int currentLoggedInPlayers = 0;
+        
+        // 遍历服务器上的所有玩家，统计来自同一IP且已登录的玩家数量
+        for (ServerPlayer player : currentPlayer.getServer().getPlayerList().getPlayers()) {
+            // 跳过当前玩家自己
+            if (player.equals(currentPlayer)) {
+                continue;
+            }
+            
+            // 检查玩家是否已登录且来自同一IP
+            if (isLoggedIn(player) && ip.equals(getPlayerIP(player))) {
+                currentLoggedInPlayers++;
+            }
+        }
+        
+        // 检查是否超过限制
+        return currentLoggedInPlayers < maxPlayersPerIP;
+    }
+
+    /**
+     * 获取指定IP地址当前已登录的玩家数量
+     * @param ip IP地址
+     * @param server 服务器实例
+     * @return 已登录的玩家数量
+     */
+    public static int getLoggedInPlayersFromIP(String ip, net.minecraft.server.MinecraftServer server) {
+        int count = 0;
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (isLoggedIn(player) && ip.equals(getPlayerIP(player))) {
+                count++;
+            }
+        }
+        return count;
     }
 }
