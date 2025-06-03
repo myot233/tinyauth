@@ -501,6 +501,7 @@ public class AuthCommands {
     private static int onIPGroupsCommand(CommandContext<CommandSourceStack> ctx) {
         try {
             // 获取所有在线玩家
+
             List<ServerPlayer> onlinePlayers = ctx.getSource().getServer().getPlayerList().getPlayers();
             
             if (onlinePlayers.isEmpty()) {

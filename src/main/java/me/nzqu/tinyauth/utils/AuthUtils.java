@@ -1,5 +1,7 @@
 package me.nzqu.tinyauth.utils;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -10,6 +12,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.mojang.brigadier.context.ParsedCommandNode;
 import com.mojang.brigadier.tree.LiteralCommandNode;
 
+import io.netty.channel.local.LocalAddress;
 import me.nzqu.tinyauth.TinyAuth;
 import me.nzqu.tinyauth.capabilities.AuthCapability;
 import net.minecraft.commands.CommandSourceStack;
@@ -19,6 +22,7 @@ import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.GameType;
+import org.slf4j.LoggerFactory;
 
 public class AuthUtils {
     public static AuthCapability getAuthCapability(ServerPlayer player){
@@ -141,27 +145,36 @@ public class AuthUtils {
      * @return IP地址字符串，完整保留IPv6格式
      */
     public static String getPlayerIP(ServerPlayer player) {
-        String ip = player.getIpAddress();
+        SocketAddress ipAddr = player.connection.getConnection().getRemoteAddress();
+        String ip;
+        if(ipAddr instanceof InetSocketAddress inetSocketAddress){
+            ip = inetSocketAddress.getAddress().getHostAddress();
+        }else if (ipAddr instanceof LocalAddress){
+            ip = "host";
+        }else{
+            ip = "unknown";
+        }
+//        LoggerFactory.getLogger("ipaddr").warn(ip);
         if (ip != null) {
-            // 处理IPv6格式 [IPv6]:port
-            if (ip.startsWith("[") && ip.contains("]:")) {
-                int bracketEnd = ip.indexOf("]:");
-                if (bracketEnd > 0) {
-                    return ip.substring(1, bracketEnd); // 移除方括号和端口，保留完整IPv6地址
-                }
-            }
-            // 处理IPv4格式 IPv4:port
-            else if (ip.contains(":") && !ip.contains("::")) {
-                // 检查是否是IPv4:port格式（IPv4不包含::）
-                int lastColon = ip.lastIndexOf(':');
-                if (lastColon > 0) {
-                    String portPart = ip.substring(lastColon + 1);
-                    // 如果冒号后面是纯数字，说明是端口号
-                    if (portPart.matches("\\d+")) {
-                        return ip.substring(0, lastColon);
-                    }
-                }
-            }
+//            // 处理IPv6格式 [IPv6]:port
+//            if (ip.startsWith("[") && ip.contains("]:")) {
+//                int bracketEnd = ip.indexOf("]:");
+//                if (bracketEnd > 0) {
+//                    return ip.substring(1, bracketEnd); // 移除方括号和端口，保留完整IPv6地址
+//                }
+//            }
+//            // 处理IPv4格式 IPv4:port
+//            else if (ip.contains(":") && !ip.contains("::")) {
+//                // 检查是否是IPv4:port格式（IPv4不包含::）
+//                int lastColon = ip.lastIndexOf(':');
+//                if (lastColon > 0) {
+//                    String portPart = ip.substring(lastColon + 1);
+//                    // 如果冒号后面是纯数字，说明是端口号
+//                    if (portPart.matches("\\d+")) {
+//                        return ip.substring(0, lastColon);
+//                    }
+//                }
+//            }
             // 如果是纯IPv6地址（没有端口）或者其他格式，直接返回
             return ip;
         }
