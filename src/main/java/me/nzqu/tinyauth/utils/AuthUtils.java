@@ -107,8 +107,9 @@ public class AuthUtils {
             capability.setPlayerPassword("");
             capability.msgTick = 0;
             capability.timeOutTick = 0;
+            capability.allowedIPs.clear();
             // 清除登录历史
-            capability.getLoginHistory().clear();
+            //capability.getLoginHistory().clear();
             TinyAuth.LOGGER.info("Account removed for player {}", player.getName().getString());
         }
     }
