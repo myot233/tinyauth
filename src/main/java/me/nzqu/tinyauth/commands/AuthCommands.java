@@ -80,7 +80,11 @@ public class AuthCommands {
                                                 .executes(AuthCommands::onIPClearCommand)))
                                 .then(Commands.literal("stats")
                                         .then(Commands.argument("ip", StringArgumentType.word())
-                                                .executes(AuthCommands::onIPStatsCommand)))));
+                                                .executes(AuthCommands::onIPStatsCommand)))
+                                .then(Commands.literal("players")
+                                        .executes(AuthCommands::onIPPlayersCommand))
+                                .then(Commands.literal("groups")
+                                        .executes(AuthCommands::onIPGroupsCommand))));
     }
 
     private static int onChangePasswordCommand(CommandContext<CommandSourceStack> ctx) {
@@ -459,6 +463,92 @@ public class AuthCommands {
         } catch (Exception e) {
             ctx.getSource().sendFailure(new TextComponent("执行命令时出错"));
             TinyAuth.LOGGER.error("Error executing IP stats command", e);
+            return 0;
+        }
+    }
+
+    // IP管理命令：查看所有在线玩家的IP地址
+    private static int onIPPlayersCommand(CommandContext<CommandSourceStack> ctx) {
+        try {
+            // 获取所有在线玩家
+            List<ServerPlayer> onlinePlayers = ctx.getSource().getServer().getPlayerList().getPlayers();
+            
+            if (onlinePlayers.isEmpty()) {
+                ctx.getSource().sendSuccess(new TextComponent("当前没有在线玩家"), false);
+                return 1;
+            }
+            
+            ctx.getSource().sendSuccess(new TextComponent("§6=== 所有在线玩家的IP地址 ==="), false);
+            for (ServerPlayer player : onlinePlayers) {
+                String playerIP = AuthUtils.getPlayerIP(player);
+                boolean isLoggedIn = AuthUtils.isLoggedIn(player);
+                String status = isLoggedIn ? "§a已登录" : "§c未登录";
+                ctx.getSource().sendSuccess(new TextComponent("§7" + player.getName().getString() + ": §f" + playerIP + " " + status), false);
+            }
+            ctx.getSource().sendSuccess(new TextComponent("§6=== 共 " + onlinePlayers.size() + " 个玩家 ==="), false);
+            
+            TinyAuth.LOGGER.info("Admin {} checked IP addresses of all online players", 
+                ctx.getSource().getPlayerOrException().getName().getString());
+            return 1;
+        } catch (Exception e) {
+            ctx.getSource().sendFailure(new TextComponent("执行命令时出错"));
+            TinyAuth.LOGGER.error("Error executing IP players command", e);
+            return 0;
+        }
+    }
+
+    // IP管理命令：按IP地址分组显示玩家
+    private static int onIPGroupsCommand(CommandContext<CommandSourceStack> ctx) {
+        try {
+            // 获取所有在线玩家
+            List<ServerPlayer> onlinePlayers = ctx.getSource().getServer().getPlayerList().getPlayers();
+            
+            if (onlinePlayers.isEmpty()) {
+                ctx.getSource().sendSuccess(new TextComponent("当前没有在线玩家"), false);
+                return 1;
+            }
+            
+            // 按IP地址分组
+            java.util.Map<String, List<ServerPlayer>> ipGroups = new java.util.HashMap<>();
+            for (ServerPlayer player : onlinePlayers) {
+                String playerIP = AuthUtils.getPlayerIP(player);
+                ipGroups.computeIfAbsent(playerIP, k -> new ArrayList<>()).add(player);
+            }
+            
+            ctx.getSource().sendSuccess(new TextComponent("§6=== 按IP地址分组的玩家列表 ==="), false);
+            
+            for (java.util.Map.Entry<String, List<ServerPlayer>> entry : ipGroups.entrySet()) {
+                String ip = entry.getKey();
+                List<ServerPlayer> players = entry.getValue();
+                
+                // 显示IP地址和玩家数量
+                ctx.getSource().sendSuccess(new TextComponent("§e" + ip + " §7(" + players.size() + "个玩家):"), false);
+                
+                // 显示该IP下的所有玩家
+                for (ServerPlayer player : players) {
+                    boolean isLoggedIn = AuthUtils.isLoggedIn(player);
+                    String status = isLoggedIn ? "§a已登录" : "§c未登录";
+                    ctx.getSource().sendSuccess(new TextComponent("  §f" + player.getName().getString() + " " + status), false);
+                }
+                
+                // 检查是否超过限制
+                if (TinyAuthConfigHandler.EnableIPPlayerLimit.get()) {
+                    int maxPlayers = TinyAuthConfigHandler.MaxPlayersPerIP.get();
+                    long loggedInCount = players.stream().filter(AuthUtils::isLoggedIn).count();
+                    if (loggedInCount > maxPlayers) {
+                        ctx.getSource().sendSuccess(new TextComponent("  §c⚠ 警告: 已登录玩家数(" + loggedInCount + ")超过限制(" + maxPlayers + ")"), false);
+                    }
+                }
+            }
+            
+            ctx.getSource().sendSuccess(new TextComponent("§6=== 共 " + ipGroups.size() + " 个不同IP地址 ==="), false);
+            
+            TinyAuth.LOGGER.info("Admin {} checked IP groups of all online players", 
+                ctx.getSource().getPlayerOrException().getName().getString());
+            return 1;
+        } catch (Exception e) {
+            ctx.getSource().sendFailure(new TextComponent("执行命令时出错"));
+            TinyAuth.LOGGER.error("Error executing IP groups command", e);
             return 0;
         }
     }
