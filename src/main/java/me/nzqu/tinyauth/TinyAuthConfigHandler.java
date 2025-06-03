@@ -55,6 +55,44 @@ public class TinyAuthConfigHandler {
             .comment("登录超时踢出消息")
             .define("timeoutKickMessage", "§c登录超时，请重新连接服务器");
 
+    // 注册和登录相关消息
+    public static final ForgeConfigSpec.ConfigValue<String> NotRegisteredMessage = BUILDER
+            .comment("未注册提示消息")
+            .define("notRegisteredMessage", "§y你还没有注册");
+
+    public static final ForgeConfigSpec.ConfigValue<String> AlreadyRegisteredMessage = BUILDER
+            .comment("已注册提示消息")
+            .define("alreadyRegisteredMessage", "§y你已经注册过了");
+
+    public static final ForgeConfigSpec.ConfigValue<String> AlreadyLoggedInMessage = BUILDER
+            .comment("已登录提示消息")
+            .define("alreadyLoggedInMessage", "§y你已经登录过了");
+
+    public static final ForgeConfigSpec.ConfigValue<String> PasswordMismatchMessage = BUILDER
+            .comment("两次密码不一致消息")
+            .define("passwordMismatchMessage", "§4两次输入的密码不一致");
+
+    public static final ForgeConfigSpec.ConfigValue<String> RegisterSuccessMessage = BUILDER
+            .comment("注册成功消息")
+            .define("registerSuccessMessage", "§b注册成功！");
+
+    public static final ForgeConfigSpec.ConfigValue<String> ChangePasswordSuccessMessage = BUILDER
+            .comment("修改密码成功消息")
+            .define("changePasswordSuccessMessage", "§b修改密码成功！");
+
+    // IP管理相关消息
+    public static final ForgeConfigSpec.ConfigValue<String> IPAddedMessage = BUILDER
+            .comment("IP被添加消息")
+            .define("ipAddedMessage", "§a管理员已为你添加允许IP: %ip%");
+
+    public static final ForgeConfigSpec.ConfigValue<String> IPRemovedMessage = BUILDER
+            .comment("IP被移除消息")
+            .define("ipRemovedMessage", "§e管理员已移除你的允许IP: %ip%");
+
+    public static final ForgeConfigSpec.ConfigValue<String> IPClearedMessage = BUILDER
+            .comment("IP列表被清空消息")
+            .define("ipClearedMessage", "§e管理员已清空你的允许IP列表");
+
     // IP登录限制配置
     public static final ForgeConfigSpec.ConfigValue<Boolean> EnableIPRestriction = BUILDER
             .comment("是否启用IP登录限制")

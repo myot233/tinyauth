@@ -82,17 +82,17 @@ public class AuthCommands {
     private static int onChangePasswordCommand(CommandContext<CommandSourceStack> ctx) {
         if(ctx.getSource().getEntity() instanceof ServerPlayer player){
             if(!AuthUtils.isRegistered(player)){
-                AuthUtils.sendAuthMessage("§y你还没有注册",player);
+                AuthUtils.sendAuthMessage(TinyAuthConfigHandler.NotRegisteredMessage.get(),player);
                 return 0;
             }
             String oldPassword = StringArgumentType.getString(ctx,"old_password");
             String newPassword = StringArgumentType.getString(ctx,"new_password");
             if(AuthUtils.checkPwd(player,oldPassword)){
                 AuthUtils.changePassword(player,newPassword);
-                AuthUtils.sendAuthMessage("§b修改密码成功！",player);
+                AuthUtils.sendAuthMessage(TinyAuthConfigHandler.ChangePasswordSuccessMessage.get(),player);
                 return 1;
             }
-            AuthUtils.sendAuthMessage("§4密码错误",player);
+            AuthUtils.sendAuthMessage(TinyAuthConfigHandler.LoginFailMessage.get(),player);
             return 0;
         }
         return 0;
@@ -103,19 +103,19 @@ public class AuthCommands {
         if(ctx.getSource().getEntity() instanceof ServerPlayer player){
             TinyAuth.LOGGER.info("Login command executed at {}", player.getName());
             if(!AuthUtils.isRegistered(player)){
-                AuthUtils.sendAuthMessage("§y你还没有注册",player);
+                AuthUtils.sendAuthMessage(TinyAuthConfigHandler.NotRegisteredMessage.get(),player);
                 return 0;
             }
             if(AuthUtils.isLoggedIn(player)){
-                AuthUtils.sendAuthMessage("§y你已经登录过了",player);
+                AuthUtils.sendAuthMessage(TinyAuthConfigHandler.AlreadyLoggedInMessage.get(),player);
                 return 0;
             }
             String password = StringArgumentType.getString(ctx,"password");
             if(AuthUtils.login(player,password)){
-                AuthUtils.sendAuthMessage("§b登录成功！",player);
+                AuthUtils.sendAuthMessage(TinyAuthConfigHandler.LoginSuccessMessage.get(),player);
                 return 1;
             }
-            AuthUtils.sendAuthMessage("§4密码错误",player);
+            AuthUtils.sendAuthMessage(TinyAuthConfigHandler.LoginFailMessage.get(),player);
             return 0;
         }
         return 0;
@@ -125,13 +125,13 @@ public class AuthCommands {
     private static int onRegisterCommand(CommandContext<CommandSourceStack> ctx) {
         if(ctx.getSource().getEntity() instanceof ServerPlayer player){
             if(AuthUtils.isRegistered(player)){
-                AuthUtils.sendAuthMessage("§y你已经注册过了",player);
+                AuthUtils.sendAuthMessage(TinyAuthConfigHandler.AlreadyRegisteredMessage.get(),player);
                 return 0;
             }
             String password = StringArgumentType.getString(ctx,"password");
             String repeatPassword =  StringArgumentType.getString(ctx,"repeat_password");
             if(!password.equals(repeatPassword)){
-                AuthUtils.sendAuthMessage("§4两次输入的密码不一致",player);
+                AuthUtils.sendAuthMessage(TinyAuthConfigHandler.PasswordMismatchMessage.get(),player);
                 return 0;
             }
             if(!password.matches(TinyAuthConfigHandler.PasswordRegex.get())){
@@ -139,7 +139,7 @@ public class AuthCommands {
                 return 0;
             }
             AuthUtils.register(player,password);
-            AuthUtils.sendAuthMessage("§b注册成功！",player);
+            AuthUtils.sendAuthMessage(TinyAuthConfigHandler.RegisterSuccessMessage.get(),player);
             return 1;
         }
         return 0;
@@ -151,7 +151,7 @@ public class AuthCommands {
             ServerPlayer targetPlayer = EntityArgument.getPlayer(ctx, "player");
             if (AuthUtils.isLoggedIn(targetPlayer)) {
                 AuthUtils.logout(targetPlayer);
-                AuthUtils.sendAuthMessage("§e你的账号已被管理员登出", targetPlayer);
+                AuthUtils.sendAuthMessage(TinyAuthConfigHandler.LogoutMessage.get(), targetPlayer);
 
                 ctx.getSource().sendSuccess(new TextComponent("已登出玩家 " + targetPlayer.getName().getString()), true);
                 TinyAuth.LOGGER.info("Admin {} logged out player {}", 
@@ -175,7 +175,7 @@ public class AuthCommands {
             ServerPlayer targetPlayer = EntityArgument.getPlayer(ctx, "player");
             if (AuthUtils.isRegistered(targetPlayer)) {
                 AuthUtils.removeAccount(targetPlayer);
-                AuthUtils.sendAuthMessage("§e你的账号已被管理员注销", targetPlayer);
+                AuthUtils.sendAuthMessage(TinyAuthConfigHandler.RemoveMessage.get(), targetPlayer);
                 ctx.getSource().sendSuccess(new TextComponent("已注销玩家 " + targetPlayer.getName().getString() + " 的账号"), true);
                 TinyAuth.LOGGER.info("Admin {} removed account of player {}", 
                     ctx.getSource().getPlayerOrException().getName().getString(), 
@@ -209,7 +209,7 @@ public class AuthCommands {
                 if (AuthUtils.isLoggedIn(targetPlayer)) {
                     AuthUtils.logout(targetPlayer);
                 }
-                AuthUtils.sendAuthMessage("§e你的密码已被管理员重置", targetPlayer);
+                AuthUtils.sendAuthMessage(TinyAuthConfigHandler.ResetMessage.get(), targetPlayer);
                 ctx.getSource().sendSuccess(new TextComponent("已重置玩家 " + targetPlayer.getName().getString() + " 的密码"), true);
                 TinyAuth.LOGGER.info("Admin {} reset password for player {}", 
                     ctx.getSource().getPlayerOrException().getName().getString(), 
@@ -241,8 +241,17 @@ public class AuthCommands {
                 ctx.getSource().sendSuccess(new TextComponent("§6=== 玩家 " + targetPlayer.getName().getString() + " 的登录历史 ==="), false);
                 for (int i = 0; i < loginHistory.size(); i++) {
                     String record = loginHistory.get(i);
-                    // 改进显示格式，确保IPv6地址完整显示
-                    ctx.getSource().sendSuccess(new TextComponent("§7" + (i+1) + ". §f" + record), false);
+                    // 分离时间和IP地址，确保IPv6地址完整显示
+                    String[] parts = record.split(" - ", 2);
+                    if (parts.length == 2) {
+                        String time = parts[0];
+                        String ip = parts[1];
+                        ctx.getSource().sendSuccess(new TextComponent("§7" + (i+1) + ". §e" + time), false);
+                        ctx.getSource().sendSuccess(new TextComponent("   §f" + ip), false);
+                    } else {
+                        // 如果格式不匹配，直接显示原始记录
+                        ctx.getSource().sendSuccess(new TextComponent("§7" + (i+1) + ". §f" + record), false);
+                    }
                 }
                 ctx.getSource().sendSuccess(new TextComponent("§6=== 共 " + loginHistory.size() + " 条记录 ==="), false);
                 
@@ -279,7 +288,16 @@ public class AuthCommands {
                 
                 ctx.getSource().sendSuccess(new TextComponent("§6=== 玩家 " + targetPlayer.getName().getString() + " 的允许IP列表 ==="), false);
                 for (int i = 0; i < allowedIPs.size(); i++) {
-                    ctx.getSource().sendSuccess(new TextComponent("§7" + (i+1) + ". §f" + allowedIPs.get(i)), false);
+                    String ip = allowedIPs.get(i);
+                    // 为IPv6地址提供更好的显示格式
+                    if (ip.contains(":") && ip.length() > 15) {
+                        // 可能是IPv6地址，使用单独一行显示
+                        ctx.getSource().sendSuccess(new TextComponent("§7" + (i+1) + ". IPv6地址:"), false);
+                        ctx.getSource().sendSuccess(new TextComponent("   §f" + ip), false);
+                    } else {
+                        // IPv4地址或较短的地址，正常显示
+                        ctx.getSource().sendSuccess(new TextComponent("§7" + (i+1) + ". §f" + ip), false);
+                    }
                 }
                 ctx.getSource().sendSuccess(new TextComponent("§6=== 共 " + allowedIPs.size() + " 个IP ==="), false);
                 
@@ -304,7 +322,8 @@ public class AuthCommands {
             if (AuthUtils.isRegistered(targetPlayer)) {
                 if (AuthUtils.tryAddAllowedIP(targetPlayer, ip)) {
                     ctx.getSource().sendSuccess(new TextComponent("已为玩家 " + targetPlayer.getName().getString() + " 添加允许IP: " + ip), true);
-                    AuthUtils.sendAuthMessage("§a管理员已为你添加允许IP: " + ip, targetPlayer);
+                    String message = TinyAuthConfigHandler.IPAddedMessage.get().replace("%ip%", ip);
+                    AuthUtils.sendAuthMessage(message, targetPlayer);
                     TinyAuth.LOGGER.info("Admin {} added allowed IP {} for player {}", 
                         ctx.getSource().getPlayerOrException().getName().getString(), 
                         ip, targetPlayer.getName().getString());
@@ -333,7 +352,8 @@ public class AuthCommands {
             if (AuthUtils.isRegistered(targetPlayer)) {
                 if (AuthUtils.removeAllowedIP(targetPlayer, ip)) {
                     ctx.getSource().sendSuccess(new TextComponent("已为玩家 " + targetPlayer.getName().getString() + " 移除允许IP: " + ip), true);
-                    AuthUtils.sendAuthMessage("§e管理员已移除你的允许IP: " + ip, targetPlayer);
+                    String message = TinyAuthConfigHandler.IPRemovedMessage.get().replace("%ip%", ip);
+                    AuthUtils.sendAuthMessage(message, targetPlayer);
                     TinyAuth.LOGGER.info("Admin {} removed allowed IP {} for player {}", 
                         ctx.getSource().getPlayerOrException().getName().getString(), 
                         ip, targetPlayer.getName().getString());
@@ -361,7 +381,7 @@ public class AuthCommands {
             if (AuthUtils.isRegistered(targetPlayer)) {
                 AuthUtils.clearAllowedIPs(targetPlayer);
                 ctx.getSource().sendSuccess(new TextComponent("已清空玩家 " + targetPlayer.getName().getString() + " 的允许IP列表"), true);
-                AuthUtils.sendAuthMessage("§e管理员已清空你的允许IP列表", targetPlayer);
+                AuthUtils.sendAuthMessage(TinyAuthConfigHandler.IPClearedMessage.get(), targetPlayer);
                 TinyAuth.LOGGER.info("Admin {} cleared allowed IPs for player {}", 
                     ctx.getSource().getPlayerOrException().getName().getString(), 
                     targetPlayer.getName().getString());

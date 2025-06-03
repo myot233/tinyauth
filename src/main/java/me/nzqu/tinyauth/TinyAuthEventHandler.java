@@ -2,13 +2,10 @@ package me.nzqu.tinyauth;
 
 import me.nzqu.tinyauth.capabilities.AuthCapability;
 import me.nzqu.tinyauth.utils.AuthUtils;
-import net.minecraft.client.Minecraft;
+import static me.nzqu.tinyauth.utils.AuthUtils.getPlayerIP;
 import net.minecraft.network.chat.TextComponent;
-import net.minecraft.server.level.ChunkHolder;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.GameType;
-import net.minecraftforge.common.world.ForgeChunkManager;
 import net.minecraftforge.event.CommandEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
@@ -16,8 +13,6 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
-
-import static me.nzqu.tinyauth.utils.AuthUtils.getPlayerIP;
 
 @Mod.EventBusSubscriber
 public class TinyAuthEventHandler {
@@ -45,9 +40,9 @@ public class TinyAuthEventHandler {
             String ip = getPlayerIP(player);
             auth.addLoginRecord(ip);
             if (!AuthUtils.isRegistered(player)) {
-                AuthUtils.sendAuthMessage("§y你还没有注册,请输入/register <设置密码> <重复密码>", player);
+                AuthUtils.sendAuthMessage(TinyAuthConfigHandler.RegisterPrompt.get(), player);
             } else {
-                AuthUtils.sendAuthMessage("§b请登录,请输入/login <密码>", player);
+                AuthUtils.sendAuthMessage(TinyAuthConfigHandler.LoginPrompt.get(), player);
             }
         }
     }
@@ -122,9 +117,9 @@ public class TinyAuthEventHandler {
                 authCapability.timeOutTick++;
                 if(authCapability.msgTick % TinyAuthConfigHandler.TickPerMsg.get() == 0){
                     if(AuthUtils.isRegistered(player)){
-                        AuthUtils.sendAuthMessage("§b请登录,请输入/login <密码>", player);
+                        AuthUtils.sendAuthMessage(TinyAuthConfigHandler.LoginPrompt.get(), player);
                     }else{
-                        AuthUtils.sendAuthMessage("§y你还没有注册,请输入/register <设置密码> <重复密码>", player);
+                        AuthUtils.sendAuthMessage(TinyAuthConfigHandler.RegisterPrompt.get(), player);
                     }
                 }
                 if(authCapability.timeOutTick > TinyAuthConfigHandler.TimeOutTick.get()){
@@ -159,7 +154,7 @@ public class TinyAuthEventHandler {
                     AuthUtils.checkCommand(event.getParseResults().getContext().getNodes(),"register")
             ) return;
             if(authCapability.getPlayerState() != AuthCapability.AccountState.LOGIN){
-                AuthUtils.sendAuthMessage("§b请登录,请输入/login <密码>", player);
+                AuthUtils.sendAuthMessage(TinyAuthConfigHandler.LoginPrompt.get(), player);
                 event.setCanceled(true);
             }
         }

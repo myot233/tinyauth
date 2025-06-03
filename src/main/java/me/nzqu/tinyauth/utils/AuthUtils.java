@@ -134,20 +134,26 @@ public class AuthUtils {
     public static String getPlayerIP(ServerPlayer player) {
         String ip = player.getIpAddress();
         if (ip != null) {
-            // 移除可能的端口号，但保留IPv6的完整格式
-            if (ip.contains(":") && !ip.startsWith("[")) {
-                // 这可能是IPv4:port格式
-                int lastColon = ip.lastIndexOf(':');
-                if (lastColon > 0 && ip.substring(lastColon + 1).matches("\\d+")) {
-                    return ip.substring(0, lastColon);
-                }
-            } else if (ip.startsWith("[") && ip.contains("]:")) {
-                // 这是IPv6格式 [IPv6]:port
+            // 处理IPv6格式 [IPv6]:port
+            if (ip.startsWith("[") && ip.contains("]:")) {
                 int bracketEnd = ip.indexOf("]:");
                 if (bracketEnd > 0) {
-                    return ip.substring(1, bracketEnd); // 移除方括号和端口
+                    return ip.substring(1, bracketEnd); // 移除方括号和端口，保留完整IPv6地址
                 }
             }
+            // 处理IPv4格式 IPv4:port
+            else if (ip.contains(":") && !ip.contains("::")) {
+                // 检查是否是IPv4:port格式（IPv4不包含::）
+                int lastColon = ip.lastIndexOf(':');
+                if (lastColon > 0) {
+                    String portPart = ip.substring(lastColon + 1);
+                    // 如果冒号后面是纯数字，说明是端口号
+                    if (portPart.matches("\\d+")) {
+                        return ip.substring(0, lastColon);
+                    }
+                }
+            }
+            // 如果是纯IPv6地址（没有端口）或者其他格式，直接返回
             return ip;
         }
         return "unknown";
