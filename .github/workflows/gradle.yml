@@ -14,22 +14,42 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Java
-       The issue in this workflow is caused by a "Permission denied run: echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$G" error when attempting to execute `./gradlew` in theITHUB_ENV"
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: grad `Build & Publish` step. This typically happens if thele/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v4
         with:
           cache-disabled: true
 
-      - name: Validate Gradle `gradlew` script does not have the executable permission set.
-
- Wrapper Integrity
-        uses: gradle/actions/wrapper### Solution
-You need to ensure that the-validation@v3
+      - name: Validate Gradle Wrapper Integrity
+        uses: gradle/actions/wrapper-validation@v3
 
       # Add step to set execute permissions for gradlew
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Build & Publish
+      - name: Build with Gradle
         run: ./gradlew build
+
+
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: TinyAuth-${{ github.sha }}
+          path: |
+            build/libs/*.jar
+            !build/libs/*-sources.jar
+            !build/libs/*-javadoc.jar
+          retention-days: 30
+
+      - name: Upload Release Build (on main branch)
+        if: github.ref == 'refs/heads/1.18.2' && github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: TinyAuth-Release-${{ github.run_number }}
+          path: build/libs/*.jar
+          retention-days: 90
