@@ -1,5 +1,5 @@
 # TinyAuth
-
+![Brand](img/tinyAuthBrand.png)
 ![Minecraft](https://img.shields.io/badge/Minecraft-1.18.2+-green.svg)
 ![Forge](https://img.shields.io/badge/Forge-Mod-orange.svg)
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
