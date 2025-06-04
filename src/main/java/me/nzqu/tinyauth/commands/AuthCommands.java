@@ -84,7 +84,19 @@ public class AuthCommands {
                                 .then(Commands.literal("players")
                                         .executes(AuthCommands::onIPPlayersCommand))
                                 .then(Commands.literal("groups")
-                                        .executes(AuthCommands::onIPGroupsCommand))));
+                                        .executes(AuthCommands::onIPGroupsCommand))
+                                .then(Commands.literal("whitelist")
+                                        .then(Commands.literal("list")
+                                                .executes(AuthCommands::onWhitelistListCommand))
+                                        .then(Commands.literal("add")
+                                                .then(Commands.argument("ip", StringArgumentType.word())
+                                                        .executes(AuthCommands::onWhitelistAddCommand)))
+                                        .then(Commands.literal("remove")
+                                                .then(Commands.argument("ip", StringArgumentType.word())
+                                                        .executes(AuthCommands::onWhitelistRemoveCommand)))
+                                        .then(Commands.literal("check")
+                                                .then(Commands.argument("ip", StringArgumentType.word())
+                                                        .executes(AuthCommands::onWhitelistCheckCommand))))));
     }
 
     private static int onChangePasswordCommand(CommandContext<CommandSourceStack> ctx) {
@@ -434,10 +446,17 @@ public class AuthCommands {
                 int maxPlayers = TinyAuthConfigHandler.MaxPlayersPerIP.get();
                 ctx.getSource().sendSuccess(new TextComponent("§7最大允许玩家数: §f" + maxPlayers), false);
                 
-                if (loggedInPlayers.size() >= maxPlayers) {
-                    ctx.getSource().sendSuccess(new TextComponent("§c状态: 已达到限制"), false);
+                // 检查是否在白名单中
+                boolean isWhitelisted = AuthUtils.isIPInWhitelist(targetIP);
+                if (isWhitelisted) {
+                    ctx.getSource().sendSuccess(new TextComponent("§a白名单状态: 在白名单中（绕过限制）"), false);
                 } else {
-                    ctx.getSource().sendSuccess(new TextComponent("§a状态: 正常"), false);
+                    ctx.getSource().sendSuccess(new TextComponent("§7白名单状态: 不在白名单中"), false);
+                    if (loggedInPlayers.size() >= maxPlayers) {
+                        ctx.getSource().sendSuccess(new TextComponent("§c状态: 已达到限制"), false);
+                    } else {
+                        ctx.getSource().sendSuccess(new TextComponent("§a状态: 正常"), false);
+                    }
                 }
             } else {
                 ctx.getSource().sendSuccess(new TextComponent("§7IP玩家数限制: §e未启用"), false);
@@ -550,6 +569,98 @@ public class AuthCommands {
         } catch (Exception e) {
             ctx.getSource().sendFailure(new TextComponent("执行命令时出错"));
             TinyAuth.LOGGER.error("Error executing IP groups command", e);
+            return 0;
+        }
+    }
+
+    // IP管理命令：查看IP白名单列表
+    private static int onWhitelistListCommand(CommandContext<CommandSourceStack> ctx) {
+        try {
+            List<String> whitelist = AuthUtils.getWhitelist();
+            
+            if (whitelist.isEmpty()) {
+                ctx.getSource().sendSuccess(new TextComponent("当前没有IP白名单"), false);
+                return 1;
+            }
+            
+            ctx.getSource().sendSuccess(new TextComponent("§6=== IP白名单列表 ==="), false);
+            for (int i = 0; i < whitelist.size(); i++) {
+                String ip = whitelist.get(i);
+                ctx.getSource().sendSuccess(new TextComponent("§7" + (i+1) + ". §f" + ip), false);
+            }
+            ctx.getSource().sendSuccess(new TextComponent("§6=== 共 " + whitelist.size() + " 个IP ==="), false);
+            
+            TinyAuth.LOGGER.info("Admin {} checked IP whitelist", 
+                ctx.getSource().getPlayerOrException().getName().getString());
+            return 1;
+        } catch (Exception e) {
+            ctx.getSource().sendFailure(new TextComponent("执行命令时出错"));
+            TinyAuth.LOGGER.error("Error executing IP whitelist list command", e);
+            return 0;
+        }
+    }
+
+    // IP管理命令：添加IP到白名单
+    private static int onWhitelistAddCommand(CommandContext<CommandSourceStack> ctx) {
+        try {
+            String ip = StringArgumentType.getString(ctx, "ip");
+            
+            if (AuthUtils.addWhitelistIP(ip)) {
+                ctx.getSource().sendSuccess(new TextComponent("已检查IP: " + ip + "，请手动修改配置文件并重启服务器以生效"), true);
+                TinyAuth.LOGGER.info("Admin {} requested to add IP {} to whitelist", 
+                    ctx.getSource().getPlayerOrException().getName().getString(), ip);
+                return 1;
+            } else {
+                ctx.getSource().sendFailure(new TextComponent("IP已存在于白名单中"));
+                return 0;
+            }
+        } catch (Exception e) {
+            ctx.getSource().sendFailure(new TextComponent("执行命令时出错"));
+            TinyAuth.LOGGER.error("Error executing IP whitelist add command", e);
+            return 0;
+        }
+    }
+
+    // IP管理命令：从白名单移除IP
+    private static int onWhitelistRemoveCommand(CommandContext<CommandSourceStack> ctx) {
+        try {
+            String ip = StringArgumentType.getString(ctx, "ip");
+            
+            if (AuthUtils.removeWhitelistIP(ip)) {
+                ctx.getSource().sendSuccess(new TextComponent("已检查IP: " + ip + "，请手动修改配置文件并重启服务器以生效"), true);
+                TinyAuth.LOGGER.info("Admin {} requested to remove IP {} from whitelist", 
+                    ctx.getSource().getPlayerOrException().getName().getString(), ip);
+                return 1;
+            } else {
+                ctx.getSource().sendFailure(new TextComponent("IP不存在于白名单中"));
+                return 0;
+            }
+        } catch (Exception e) {
+            ctx.getSource().sendFailure(new TextComponent("执行命令时出错"));
+            TinyAuth.LOGGER.error("Error executing IP whitelist remove command", e);
+            return 0;
+        }
+    }
+
+    // IP管理命令：检查IP是否在白名单中
+    private static int onWhitelistCheckCommand(CommandContext<CommandSourceStack> ctx) {
+        try {
+            String ip = StringArgumentType.getString(ctx, "ip");
+            
+            boolean isWhitelisted = AuthUtils.isWhitelisted(ip);
+            
+            if (isWhitelisted) {
+                ctx.getSource().sendSuccess(new TextComponent("IP: " + ip + " 在白名单中"), false);
+            } else {
+                ctx.getSource().sendSuccess(new TextComponent("IP: " + ip + " 不在白名单中"), false);
+            }
+            
+            TinyAuth.LOGGER.info("Admin {} checked IP {} in whitelist", 
+                ctx.getSource().getPlayerOrException().getName().getString(), ip);
+            return 1;
+        } catch (Exception e) {
+            ctx.getSource().sendFailure(new TextComponent("执行命令时出错"));
+            TinyAuth.LOGGER.error("Error executing IP whitelist check command", e);
             return 0;
         }
     }

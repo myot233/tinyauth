@@ -119,6 +119,15 @@ public class TinyAuthConfigHandler {
             .comment("IP玩家数量超限时的提示消息")
             .define("ipPlayerLimitMessage", "§c此IP地址已达到最大玩家数量限制");
 
+    // IP白名单配置
+    public static final ForgeConfigSpec.ConfigValue<java.util.List<? extends String>> IPWhitelist = BUILDER
+            .comment("IP白名单，这些IP地址不受防多开限制")
+            .defineList("ipWhitelist", java.util.Arrays.asList("127.0.0.1", "localhost"), obj -> obj instanceof String);
+
+    public static final ForgeConfigSpec.ConfigValue<String> IPWhitelistBypassMessage = BUILDER
+            .comment("IP白名单绕过限制时的日志消息")
+            .define("ipWhitelistBypassMessage", "IP {} 在白名单中，绕过防多开限制");
+
     // 登录成功后的延迟消息配置
     public static final ForgeConfigSpec.ConfigValue<Integer> LoginDelayTicks = BUILDER
             .comment("登录成功后延迟发送消息的时间（游戏刻）")
@@ -148,7 +157,10 @@ public class TinyAuthConfigHandler {
     public static final ForgeConfigSpec.ConfigValue<String> RemoveSubtitleText = BUILDER
             .comment("账号被注销时的副标题文本")
             .define("removeSubtitleText", "§c你的账号已被管理员注销");
-            
+    public static final ForgeConfigSpec.ConfigValue<String> AuthSenderTitle = BUILDER
+            .comment("账号被注销时的副标题文本")
+            .define("authSenderTitle", "§d[登录系统] ");
+
     static {
         BUILDER.push("Auth Settings");
         // 配置已在上面定义，这里不需要重复定义

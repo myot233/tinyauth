@@ -14,6 +14,7 @@ import com.mojang.brigadier.tree.LiteralCommandNode;
 
 import io.netty.channel.local.LocalAddress;
 import me.nzqu.tinyauth.TinyAuth;
+import me.nzqu.tinyauth.TinyAuthConfigHandler;
 import me.nzqu.tinyauth.capabilities.AuthCapability;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.TextComponent;
@@ -22,7 +23,6 @@ import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.GameType;
-import org.slf4j.LoggerFactory;
 
 public class AuthUtils {
     public static AuthCapability getAuthCapability(ServerPlayer player){
@@ -258,7 +258,7 @@ public class AuthUtils {
     }
     
     public static void sendAuthMessage(String message, ServerPlayer player){
-        player.displayClientMessage(new TextComponent("§d[登录系统] " + message), false);
+        player.displayClientMessage(new TextComponent(TinyAuthConfigHandler.AuthSenderTitle.get() + message), false);
     }
 
     /**
@@ -393,6 +393,12 @@ public class AuthUtils {
             return true; // 如果未启用IP玩家数限制，则允许
         }
         
+        // 检查IP是否在白名单中
+        if (isIPInWhitelist(ip)) {
+            TinyAuth.LOGGER.info(me.nzqu.tinyauth.TinyAuthConfigHandler.IPWhitelistBypassMessage.get(), ip);
+            return true; // 白名单IP绕过限制
+        }
+        
         int maxPlayersPerIP = me.nzqu.tinyauth.TinyAuthConfigHandler.MaxPlayersPerIP.get();
         int currentLoggedInPlayers = 0;
         
@@ -411,6 +417,67 @@ public class AuthUtils {
         
         // 检查是否超过限制
         return currentLoggedInPlayers < maxPlayersPerIP;
+    }
+
+    /**
+     * 检查IP地址是否在白名单中
+     * @param ip 要检查的IP地址
+     * @return 如果在白名单中返回true
+     */
+    public static boolean isIPInWhitelist(String ip) {
+        java.util.List<? extends String> whitelist = me.nzqu.tinyauth.TinyAuthConfigHandler.IPWhitelist.get();
+        return whitelist.contains(ip);
+    }
+
+    /**
+     * 获取IP白名单列表
+     * @return IP白名单列表
+     */
+    public static java.util.List<String> getWhitelist() {
+        java.util.List<? extends String> whitelist = me.nzqu.tinyauth.TinyAuthConfigHandler.IPWhitelist.get();
+        return new java.util.ArrayList<>(whitelist);
+    }
+
+    /**
+     * 添加IP到白名单（注意：这只是临时添加到内存中，重启后会丢失）
+     * @param ip 要添加的IP地址
+     * @return 如果成功添加返回true
+     */
+    public static boolean addWhitelistIP(String ip) {
+        // 注意：ForgeConfigSpec的列表是不可变的，这里只能检查是否已存在
+        // 实际的白名单管理需要通过配置文件修改
+        java.util.List<? extends String> whitelist = me.nzqu.tinyauth.TinyAuthConfigHandler.IPWhitelist.get();
+        if (whitelist.contains(ip)) {
+            return false; // 已存在
+        }
+        // 这里应该提示管理员手动修改配置文件
+        TinyAuth.LOGGER.warn("IP whitelist modification requires server restart. Please add '{}' to config file.", ip);
+        return true; // 返回true表示可以添加，但需要重启
+    }
+
+    /**
+     * 从白名单移除IP（注意：这只是临时操作，重启后会恢复）
+     * @param ip 要移除的IP地址
+     * @return 如果成功移除返回true
+     */
+    public static boolean removeWhitelistIP(String ip) {
+        // 注意：ForgeConfigSpec的列表是不可变的，这里只能检查是否存在
+        java.util.List<? extends String> whitelist = me.nzqu.tinyauth.TinyAuthConfigHandler.IPWhitelist.get();
+        if (!whitelist.contains(ip)) {
+            return false; // 不存在
+        }
+        // 这里应该提示管理员手动修改配置文件
+        TinyAuth.LOGGER.warn("IP whitelist modification requires server restart. Please remove '{}' from config file.", ip);
+        return true; // 返回true表示可以移除，但需要重启
+    }
+
+    /**
+     * 检查IP是否在白名单中（别名方法）
+     * @param ip 要检查的IP地址
+     * @return 如果在白名单中返回true
+     */
+    public static boolean isWhitelisted(String ip) {
+        return isIPInWhitelist(ip);
     }
 
     /**
