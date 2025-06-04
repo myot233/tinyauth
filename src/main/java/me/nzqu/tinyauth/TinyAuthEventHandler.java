@@ -7,6 +7,7 @@ import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.GameType;
 import net.minecraftforge.event.CommandEvent;
+import net.minecraftforge.event.ServerChatEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -157,6 +158,16 @@ public class TinyAuthEventHandler {
                 AuthUtils.sendAuthMessage(TinyAuthConfigHandler.LoginPrompt.get(), player);
                 event.setCanceled(true);
             }
+        }
+    }
+
+    @SubscribeEvent
+    public static void onPlayerChat(ServerChatEvent chatEvent){
+        ServerPlayer player = chatEvent.getPlayer();
+        AuthCapability authCapability =  AuthUtils.getAuthCapability(player);
+        if(authCapability.getPlayerState() != AuthCapability.AccountState.LOGIN){
+            AuthUtils.sendAuthMessage(TinyAuthConfigHandler.LoginPrompt.get(), player);
+            chatEvent.setCanceled(true);
         }
     }
 
