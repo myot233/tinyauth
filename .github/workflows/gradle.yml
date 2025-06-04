@@ -3,12 +3,15 @@ name: Java CI with Gradle
 on:
   push:
     branches: [ "1.18.2" ]
+    tags: [ "v*.*.*" ]
   pull_request:
     branches: [ "1.18.2" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -34,12 +37,22 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew build
 
-
+      # 获取版本信息
+      - name: Get version
+        id: get_version
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            VERSION=${GITHUB_REF#refs/tags/}
+          else
+            VERSION=$(grep 'mod_version=' gradle.properties | cut -d'=' -f2)
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TinyAuth-${{ github.sha }}
+          name: TinyAuth-${{ steps.get_version.outputs.VERSION }}
           path: |
             build/libs/*.jar
             !build/libs/*-sources.jar
@@ -53,3 +66,35 @@ jobs:
           name: TinyAuth-Release-${{ github.run_number }}
           path: build/libs/*.jar
           retention-days: 90
+
+      # 创建 GitHub Release (仅在推送标签时触发)
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "TinyAuth ${{ steps.get_version.outputs.VERSION }}"
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+          body: |
+            ## TinyAuth ${{ steps.get_version.outputs.VERSION }}
+            
+            ### 📦 下载
+            - **TinyAuth-${{ steps.get_version.outputs.VERSION }}.jar** - 主模组文件
+            
+            ### 📋 版本信息
+            - Minecraft 版本: 1.18.2
+            - Forge 版本: 40.3.9
+            - Java 版本: 17
+            
+            ### 🔧 安装方法
+            1. 确保已安装 Minecraft Forge 1.18.2 - 40.3.9
+            2. 将下载的 jar 文件放入 `.minecraft/mods` 文件夹
+            3. 启动游戏即可
+            
+            ---
+            完整更新日志请查看 [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/1.18.2/CHANGELOG.md)
+          files: |
+            build/libs/*.jar
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
