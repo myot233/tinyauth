@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -49,6 +51,98 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
+      # 生成更新日志（仅在创建 Release 时）
+      - name: Generate Changelog
+        if: startsWith(github.ref, 'refs/tags/')
+        id: changelog
+        run: |
+          # 获取上一个标签
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          CURRENT_TAG=${{ steps.get_version.outputs.VERSION }}
+          
+          echo "Current tag: $CURRENT_TAG"
+          echo "Previous tag: $PREVIOUS_TAG"
+          
+          # 如果没有上一个标签，获取所有提交
+          if [ -z "$PREVIOUS_TAG" ]; then
+            COMMIT_RANGE="HEAD"
+            echo "No previous tag found, using all commits"
+          else
+            COMMIT_RANGE="$PREVIOUS_TAG..HEAD"
+            echo "Using commit range: $COMMIT_RANGE"
+          fi
+          
+          # 创建临时文件存储更新日志
+          CHANGELOG_FILE=$(mktemp)
+          
+          # 收集不同类型的提交
+          FEATURES=$(git log $COMMIT_RANGE --pretty=format:"- %s" --grep="^feat" --grep="^feature" --grep="^add" --grep="^新增" --grep="^添加" -i || true)
+          FIXES=$(git log $COMMIT_RANGE --pretty=format:"- %s" --grep="^fix" --grep="^bug" --grep="^修复" --grep="^bugfix" -i || true)
+          IMPROVEMENTS=$(git log $COMMIT_RANGE --pretty=format:"- %s" --grep="^improve" --grep="^enhance" --grep="^优化" --grep="^改进" --grep="^perf" -i || true)
+          DOCS=$(git log $COMMIT_RANGE --pretty=format:"- %s" --grep="^docs" --grep="^doc" --grep="^文档" -i || true)
+          OTHERS=$(git log $COMMIT_RANGE --pretty=format:"- %s" --invert-grep --grep="^feat" --grep="^feature" --grep="^add" --grep="^新增" --grep="^添加" --grep="^fix" --grep="^bug" --grep="^修复" --grep="^bugfix" --grep="^improve" --grep="^enhance" --grep="^优化" --grep="^改进" --grep="^perf" --grep="^docs" --grep="^doc" --grep="^文档" --grep="^bump version" --grep="^release" --grep="^merge" -i || true)
+          
+          # 生成结构化的更新日志
+          echo "## 🎉 TinyAuth $CURRENT_TAG" > $CHANGELOG_FILE
+          echo "" >> $CHANGELOG_FILE
+          
+          if [ ! -z "$FEATURES" ]; then
+            echo "### ✨ 新功能" >> $CHANGELOG_FILE
+            echo "$FEATURES" >> $CHANGELOG_FILE
+            echo "" >> $CHANGELOG_FILE
+          fi
+          
+          if [ ! -z "$FIXES" ]; then
+            echo "### 🐛 Bug 修复" >> $CHANGELOG_FILE
+            echo "$FIXES" >> $CHANGELOG_FILE
+            echo "" >> $CHANGELOG_FILE
+          fi
+          
+          if [ ! -z "$IMPROVEMENTS" ]; then
+            echo "### 🚀 性能优化" >> $CHANGELOG_FILE
+            echo "$IMPROVEMENTS" >> $CHANGELOG_FILE
+            echo "" >> $CHANGELOG_FILE
+          fi
+          
+          if [ ! -z "$DOCS" ]; then
+            echo "### 📚 文档更新" >> $CHANGELOG_FILE
+            echo "$DOCS" >> $CHANGELOG_FILE
+            echo "" >> $CHANGELOG_FILE
+          fi
+          
+          if [ ! -z "$OTHERS" ]; then
+            echo "### 🔧 其他更改" >> $CHANGELOG_FILE
+            echo "$OTHERS" >> $CHANGELOG_FILE
+            echo "" >> $CHANGELOG_FILE
+          fi
+          
+          # 添加版本信息和安装说明
+          echo "### 📋 版本信息" >> $CHANGELOG_FILE
+          echo "- **Minecraft 版本**: 1.18.2" >> $CHANGELOG_FILE
+          echo "- **Forge 版本**: 40.3.9" >> $CHANGELOG_FILE
+          echo "- **Java 版本**: 17" >> $CHANGELOG_FILE
+          echo "" >> $CHANGELOG_FILE
+          
+          echo "### 🔧 安装方法" >> $CHANGELOG_FILE
+          echo "1. 确保已安装 Minecraft Forge 1.18.2 - 40.3.9" >> $CHANGELOG_FILE
+          echo "2. 将下载的 \`TinyAuth-$CURRENT_TAG.jar\` 文件放入 \`.minecraft/mods\` 文件夹" >> $CHANGELOG_FILE
+          echo "3. 启动游戏即可" >> $CHANGELOG_FILE
+          echo "" >> $CHANGELOG_FILE
+          
+          echo "### 📖 完整更新日志" >> $CHANGELOG_FILE
+          echo "查看完整更新日志请访问：[CHANGELOG.md](https://github.com/${{ github.repository }}/blob/1.18.2/CHANGELOG.md)" >> $CHANGELOG_FILE
+          
+          # 将更新日志内容设置为输出变量
+          {
+            echo 'CHANGELOG<<EOF'
+            cat $CHANGELOG_FILE
+            echo 'EOF'
+          } >> $GITHUB_OUTPUT
+          
+          # 显示生成的更新日志（用于调试）
+          echo "Generated changelog:"
+          cat $CHANGELOG_FILE
+
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -74,24 +168,7 @@ jobs:
         with:
           name: "TinyAuth ${{ steps.get_version.outputs.VERSION }}"
           tag_name: ${{ steps.get_version.outputs.VERSION }}
-          body: |
-            ## TinyAuth ${{ steps.get_version.outputs.VERSION }}
-            
-            ### 📦 下载
-            - **TinyAuth-${{ steps.get_version.outputs.VERSION }}.jar** - 主模组文件
-            
-            ### 📋 版本信息
-            - Minecraft 版本: 1.18.2
-            - Forge 版本: 40.3.9
-            - Java 版本: 17
-            
-            ### 🔧 安装方法
-            1. 确保已安装 Minecraft Forge 1.18.2 - 40.3.9
-            2. 将下载的 jar 文件放入 `.minecraft/mods` 文件夹
-            3. 启动游戏即可
-            
-            ---
-            完整更新日志请查看 [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/1.18.2/CHANGELOG.md)
+          body: ${{ steps.changelog.outputs.CHANGELOG }}
           files: |
             build/libs/*.jar
           draft: false

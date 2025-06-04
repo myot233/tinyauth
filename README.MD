@@ -1,4 +1,36 @@
 # TinyAuth
+
+> 🚀 **自动化发布系统**: 本项目已配置自动化发布系统，支持通过 commit 信息自动生成结构化的更新日志！
+
+## ✨ 自动化发布功能
+
+- **🎯 一键发布**: 使用脚本一键完成版本发布
+- **📝 智能更新日志**: 自动分析 commit 信息，按类型生成结构化更新日志
+- **🔄 自动构建**: GitHub Actions 自动构建和发布 Release
+- **📦 完整包装**: 自动生成版本信息、安装说明和下载链接
+
+### 快速发布
+```bash
+# Windows
+.\release.ps1 -Version "0.0.4"
+
+# Linux/macOS  
+./release.sh 0.0.4
+```
+
+### 预览更新日志
+```bash
+# Windows
+.\preview-changelog.ps1
+
+# Linux/macOS
+./preview-changelog.sh
+```
+
+📚 **详细文档**: 
+- [发布指南](./RELEASE_GUIDE.md) - 完整的发布流程说明
+- [Commit 规范](./COMMIT_CONVENTION.md) - 编写标准化提交信息
+
 ![Brand](img/tinyAuthBrand.png)
 ![Build](https://github.com/myot233/tinyauth/actions/workflows/gradle.yml/badge.svg)
 ![Minecraft](https://img.shields.io/badge/Minecraft-1.18.2+-green.svg)
@@ -12,7 +44,6 @@
 一个轻量级的Minecraft Forge服务器登录认证插件，提供完整的用户注册、登录和管理功能。
 
 ## 🌟 功能特性
-
 ### 核心功能
 - ✅ **用户注册与登录** - 支持密码注册和登录验证
 - ✅ **密码安全** - SHA-256加密存储，支持自定义密码规则
