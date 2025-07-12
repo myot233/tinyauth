@@ -90,7 +90,7 @@ public class TinyAuthEventHandler {
         if(event.player instanceof ServerPlayer player){
             AuthCapability authCapability =  AuthUtils.getAuthCapability(player);
             if(authCapability == null) return;
-            System.out.println(authCapability.loginDelayTick);
+            //System.out.println(authCapability.loginDelayTick);
             // 处理已登录玩家的延迟消息和命令
             if(authCapability.getPlayerState() == AuthCapability.AccountState.LOGIN){
                 authCapability.loginDelayTick++;
